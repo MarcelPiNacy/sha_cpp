@@ -39,12 +39,16 @@
 #include <cstring>
 #define SHA_CPP_INLINE_ALWAYS __forceinline
 #define SHA_CPP_INLINE_NEVER __declspec(noinline)
+#ifdef SHA_CPP_BIG_ENDIAN
 #define SHA_CPP_BSWAP64(MASK) _byteswap_uint64((MASK))
+#endif
 #define SHA_CPP_ROTL64(MASK, AMOUNT) _rotl64((MASK), (AMOUNT))
 #else // assume CLang-like compiler
 #define SHA_CPP_INLINE_ALWAYS __attribute__((always_inline))
 #define SHA_CPP_INLINE_NEVER __attribute__((noinline))
+#ifdef SHA_CPP_BIG_ENDIAN
 #define SHA_CPP_BSWAP64(MASK) __bswap64((MASK))
+#endif
 #define SHA_CPP_ROTL64(MASK, AMOUNT) __builtin_rotateleft64((MASK), (AMOUNT))
 #endif
 
