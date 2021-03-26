@@ -30,27 +30,25 @@
 #include <cstdint>
 
 #if defined(_DEBUG) || !defined(NDEBUG)
-#define SHA3_DEBUG
+#define SHA_CPP_DEBUG
 #include <cassert>
 #endif
 
 #ifdef _MSVC_LANG
 #include <intrin.h>
 #include <cstring>
-#define SHA3_INLINE_ALWAYS __forceinline
-#define SHA3_INLINE_NEVER __declspec(noinline)
-#define SHA3_BSWAP64(MASK) _byteswap_uint64((MASK))
-#define SHA3_ROTL64(MASK, AMOUNT) _rotl64((MASK), (AMOUNT))
-#define SHA3_POPCOUNT32(MASK) __popcnt((MASK))
+#define SHA_CPP_INLINE_ALWAYS __forceinline
+#define SHA_CPP_INLINE_NEVER __declspec(noinline)
+#define SHA_CPP_BSWAP64(MASK) _byteswap_uint64((MASK))
+#define SHA_CPP_ROTL64(MASK, AMOUNT) _rotl64((MASK), (AMOUNT))
 #else // assume CLang-like compiler
-#define SHA3_INLINE_ALWAYS __attribute__((always_inline))
-#define SHA3_INLINE_NEVER __attribute__((noinline))
-#define SHA3_BSWAP64(MASK) __bswap64((MASK))
-#define SHA3_ROTL64(MASK, AMOUNT) __builtin_rotateleft64((MASK), (AMOUNT))
-#define SHA3_POPCOUNT32(MASK) __builtin_popcountll((MASK))
+#define SHA_CPP_INLINE_ALWAYS __attribute__((always_inline))
+#define SHA_CPP_INLINE_NEVER __attribute__((noinline))
+#define SHA_CPP_BSWAP64(MASK) __bswap64((MASK))
+#define SHA_CPP_ROTL64(MASK, AMOUNT) __builtin_rotateleft64((MASK), (AMOUNT))
 #endif
 
-#ifdef SHA3_STRING_VIEW
+#ifdef SHA_CPP_STRING_VIEW
 #include <string_view>
 #endif
 
@@ -115,11 +113,12 @@ namespace sha3
 	}
 
 	template <uint32_t Bits>
-	struct hash_result
+	struct hash
 	{
 		static constexpr uint32_t hash_bits = Bits;
 		static constexpr uint32_t hash_bytes = hash_bits / 8;
 		static constexpr uint32_t hash_qwords = hash_bytes / 8;
+
 		static constexpr uint32_t hex_digit_count = hash_bytes * 2;
 
 		uint64_t hash_data[hash_qwords];
@@ -198,34 +197,58 @@ namespace sha3
 			uint8_t message_length;
 		};
 
-		SHA3_INLINE_ALWAYS uint8_t fast_mod(uint8_t value, uint32_t divisor)
+		template <uint32_t Divisor>
+		SHA_CPP_INLINE_ALWAYS uint8_t fast_mod(uint8_t value)
 		{
-			if (value == divisor)
-				return 0;
-			if (value < divisor)
-				return value;
-			if (SHA3_POPCOUNT32(divisor) == 1)
-				return value & (divisor - 1);
-			return value % divisor;
+			static constexpr uint32_t PopCount = []()
+			{
+				constexpr uint32_t lookup[] =
+				{
+					0, 1, 1, 2,
+					1, 2, 2, 3,
+					1, 2, 2, 3,
+					2, 3, 3, 4
+				};
+
+				uint32_t r = 0;
+				for (uint32_t mask = Divisor; mask != 0; mask >>= 4)
+					r += lookup[mask & 15];
+				return r;
+			}();
+
+			if constexpr (PopCount == 1)
+			{
+				return value & (Divisor - 1);
+			}
+			else
+			{
+				if (value == Divisor)
+					return 0;
+
+				if (value < Divisor)
+					return value;
+
+				return value % Divisor;
+			}
 		}
 
-		SHA3_INLINE_ALWAYS bool is_8byte_aligned(void* ptr) noexcept
+		SHA_CPP_INLINE_ALWAYS bool is_8byte_aligned(void* ptr) noexcept
 		{
 			return ((size_t)ptr & 7) == 0;
 		}
 
-		SHA3_INLINE_ALWAYS uint64_t to_little_endian(uint64_t value) noexcept
+		SHA_CPP_INLINE_ALWAYS uint64_t to_little_endian(uint64_t value) noexcept
 		{
-#ifdef SHA3_BIG_ENDIAN
-			return (uint64_t)SHA3_BSWAP64(value);
+#ifdef SHA_CPP_BIG_ENDIAN
+			return (uint64_t)SHA_CPP_BSWAP64(value);
 #else
 			return value;
 #endif
 		}
 
-		SHA3_INLINE_ALWAYS void to_little_endian_copy(uint64_t* to, const uint64_t* from, size_t count) noexcept
+		SHA_CPP_INLINE_ALWAYS void to_little_endian_copy(uint64_t* to, const uint64_t* from, size_t count) noexcept
 		{
-#ifdef SHA3_BIG_ENDIAN
+#ifdef SHA_CPP_BIG_ENDIAN
 			count /= sizeof(uint64_t);
 			const uint64_t* src = (const uint64_t*)from;
 			const uint64_t* end = (const uint64_t*)((const char*)src + count);
@@ -242,7 +265,7 @@ namespace sha3
 		}
 
 		template <uint8_t Index>
-		SHA3_INLINE_ALWAYS uint64_t keccak_theta_xor(array_ref<const uint64_t, HASH_STATE_SIZE> state) noexcept
+		SHA_CPP_INLINE_ALWAYS uint64_t keccak_theta_xor(array_ref<const uint64_t, HASH_STATE_SIZE> state) noexcept
 		{
 			uint64_t r = state[Index];
 			r ^= state[Index + 5];
@@ -253,21 +276,21 @@ namespace sha3
 		}
 
 		template <uint8_t Index>
-		SHA3_INLINE_ALWAYS void keccak_theta_step(array_ref<uint64_t, HASH_STATE_SIZE> state, array_ref<const uint64_t, 5> tmp) noexcept
+		SHA_CPP_INLINE_ALWAYS void keccak_theta_step(array_ref<uint64_t, HASH_STATE_SIZE> state, array_ref<const uint64_t, 5> tmp) noexcept
 		{
 			for (uint8_t i = 0; i != 25; i += 5)
 				state[Index + i] ^= tmp[Index];
 		}
 
-		SHA3_INLINE_ALWAYS void keccak_theta(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
+		SHA_CPP_INLINE_ALWAYS void keccak_theta(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
 		{
 			const uint64_t tmp[] =
 			{
-				SHA3_ROTL64(keccak_theta_xor<1>(state), 1) ^ keccak_theta_xor<4>(state),
-				SHA3_ROTL64(keccak_theta_xor<2>(state), 1) ^ keccak_theta_xor<0>(state),
-				SHA3_ROTL64(keccak_theta_xor<3>(state), 1) ^ keccak_theta_xor<1>(state),
-				SHA3_ROTL64(keccak_theta_xor<4>(state), 1) ^ keccak_theta_xor<2>(state),
-				SHA3_ROTL64(keccak_theta_xor<0>(state), 1) ^ keccak_theta_xor<3>(state)
+				SHA_CPP_ROTL64(keccak_theta_xor<1>(state), 1) ^ keccak_theta_xor<4>(state),
+				SHA_CPP_ROTL64(keccak_theta_xor<2>(state), 1) ^ keccak_theta_xor<0>(state),
+				SHA_CPP_ROTL64(keccak_theta_xor<3>(state), 1) ^ keccak_theta_xor<1>(state),
+				SHA_CPP_ROTL64(keccak_theta_xor<4>(state), 1) ^ keccak_theta_xor<2>(state),
+				SHA_CPP_ROTL64(keccak_theta_xor<0>(state), 1) ^ keccak_theta_xor<3>(state)
 			};
 
 			keccak_theta_step<0>(state, tmp);
@@ -277,7 +300,7 @@ namespace sha3
 			keccak_theta_step<4>(state, tmp);
 		}
 
-		SHA3_INLINE_ALWAYS void keccak_pi(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
+		SHA_CPP_INLINE_ALWAYS void keccak_pi(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
 		{
 			const uint64_t tmp = state[1];
 
@@ -313,7 +336,7 @@ namespace sha3
 		}
 
 		template <uint8_t Index>
-		SHA3_INLINE_ALWAYS void keccak_chi_step(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
+		SHA_CPP_INLINE_ALWAYS void keccak_chi_step(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
 		{
 			const uint64_t tmp0 = state[0 + Index];
 			const uint64_t tmp1 = state[1 + Index];
@@ -324,7 +347,7 @@ namespace sha3
 			state[4 + Index] ^= ~tmp0 & tmp1;
 		}
 
-		SHA3_INLINE_ALWAYS void keccak_chi(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
+		SHA_CPP_INLINE_ALWAYS void keccak_chi(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
 		{
 			keccak_chi_step<0>(state);
 			keccak_chi_step<5>(state);
@@ -333,35 +356,35 @@ namespace sha3
 			keccak_chi_step<20>(state);
 		}
 
-		SHA3_INLINE_ALWAYS void sha3_permute(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
+		SHA_CPP_INLINE_ALWAYS void sha3_permute(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
 		{
 			for (uint8_t i = 0; i < KECCAK_ROUND_COUNT; i++)
 			{
 				keccak_theta(state);
-				state[1] = SHA3_ROTL64(state[1], 1);
-				state[2] = SHA3_ROTL64(state[2], 62);
-				state[3] = SHA3_ROTL64(state[3], 28);
-				state[4] = SHA3_ROTL64(state[4], 27);
-				state[5] = SHA3_ROTL64(state[5], 36);
-				state[6] = SHA3_ROTL64(state[6], 44);
-				state[7] = SHA3_ROTL64(state[7], 6);
-				state[8] = SHA3_ROTL64(state[8], 55);
-				state[9] = SHA3_ROTL64(state[9], 20);
-				state[10] = SHA3_ROTL64(state[10], 3);
-				state[11] = SHA3_ROTL64(state[11], 10);
-				state[12] = SHA3_ROTL64(state[12], 43);
-				state[13] = SHA3_ROTL64(state[13], 25);
-				state[14] = SHA3_ROTL64(state[14], 39);
-				state[15] = SHA3_ROTL64(state[15], 41);
-				state[16] = SHA3_ROTL64(state[16], 45);
-				state[17] = SHA3_ROTL64(state[17], 15);
-				state[18] = SHA3_ROTL64(state[18], 21);
-				state[19] = SHA3_ROTL64(state[19], 8);
-				state[20] = SHA3_ROTL64(state[20], 18);
-				state[21] = SHA3_ROTL64(state[21], 2);
-				state[22] = SHA3_ROTL64(state[22], 61);
-				state[23] = SHA3_ROTL64(state[23], 56);
-				state[24] = SHA3_ROTL64(state[24], 14);
+				state[1] = SHA_CPP_ROTL64(state[1], 1);
+				state[2] = SHA_CPP_ROTL64(state[2], 62);
+				state[3] = SHA_CPP_ROTL64(state[3], 28);
+				state[4] = SHA_CPP_ROTL64(state[4], 27);
+				state[5] = SHA_CPP_ROTL64(state[5], 36);
+				state[6] = SHA_CPP_ROTL64(state[6], 44);
+				state[7] = SHA_CPP_ROTL64(state[7], 6);
+				state[8] = SHA_CPP_ROTL64(state[8], 55);
+				state[9] = SHA_CPP_ROTL64(state[9], 20);
+				state[10] = SHA_CPP_ROTL64(state[10], 3);
+				state[11] = SHA_CPP_ROTL64(state[11], 10);
+				state[12] = SHA_CPP_ROTL64(state[12], 43);
+				state[13] = SHA_CPP_ROTL64(state[13], 25);
+				state[14] = SHA_CPP_ROTL64(state[14], 39);
+				state[15] = SHA_CPP_ROTL64(state[15], 41);
+				state[16] = SHA_CPP_ROTL64(state[16], 45);
+				state[17] = SHA_CPP_ROTL64(state[17], 15);
+				state[18] = SHA_CPP_ROTL64(state[18], 21);
+				state[19] = SHA_CPP_ROTL64(state[19], 8);
+				state[20] = SHA_CPP_ROTL64(state[20], 18);
+				state[21] = SHA_CPP_ROTL64(state[21], 2);
+				state[22] = SHA_CPP_ROTL64(state[22], 61);
+				state[23] = SHA_CPP_ROTL64(state[23], 56);
+				state[24] = SHA_CPP_ROTL64(state[24], 14);
 				keccak_pi(state);
 				keccak_chi(state);
 				state[0] ^= KECCAK_ROUND_LOOKUP[i];
@@ -369,7 +392,7 @@ namespace sha3
 		}
 
 		template <uint8_t BlockSize>
-		SHA3_INLINE_ALWAYS void sha3_process_block(array_ref<uint64_t, HASH_STATE_SIZE> hash, const uint64_t* block) noexcept
+		SHA_CPP_INLINE_ALWAYS void sha3_process_block(array_ref<uint64_t, HASH_STATE_SIZE> hash, const uint64_t* block) noexcept
 		{
 			constexpr uint8_t COUNT =
 				BlockSize <= 72 ? 9 :
@@ -391,20 +414,20 @@ namespace sha3
 	{
 		using base = detail::hash_state<Bits>;
 
-#ifdef SHA3_DEBUG
+#ifdef SHA_CPP_DEBUG
 		bool debug_finalized_flag;
 #endif
 
 		void add(const void* data, size_t size) noexcept
 		{
-#ifdef SHA3_DEBUG
+#ifdef SHA_CPP_DEBUG
 			assert(!debug_finalized_flag);
 #endif
 			constexpr uint8_t BLOCK_SIZE = base::BLOCK_SIZE;
 			uint8_t* ptr = (uint8_t*)data;
 			size_t index = base::message_length;
 			base::message_length += (uint8_t)size;
-			base::message_length = (uint8_t)detail::fast_mod(base::message_length, BLOCK_SIZE);
+			base::message_length = (uint8_t)detail::fast_mod<BLOCK_SIZE>(base::message_length);
 			if (index != 0)
 			{
 				const size_t left = BLOCK_SIZE - index;
@@ -440,7 +463,7 @@ namespace sha3
 		template <size_t Size>
 		void add_fixed(const void* data) noexcept
 		{
-#ifdef SHA3_DEBUG
+#ifdef SHA_CPP_DEBUG
 			assert(!debug_finalized_flag);
 #endif
 			constexpr uint8_t BLOCK_SIZE = base::BLOCK_SIZE;
@@ -448,7 +471,7 @@ namespace sha3
 			size_t size = Size;
 			size_t index = base::message_length;
 			base::message_length += (uint8_t)size;
-			base::message_length = (uint8_t)detail::fast_mod(base::message_length, BLOCK_SIZE);
+			base::message_length = (uint8_t)detail::fast_mod<BLOCK_SIZE>(base::message_length);
 			if (index != 0)
 			{
 				const size_t left = BLOCK_SIZE - index;
@@ -498,7 +521,7 @@ namespace sha3
 		void add(char16_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
 		void add(char32_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
 		
-#ifdef SHA3_STRING_VIEW
+#ifdef SHA_CPP_STRING_VIEW
 		void add(const std::string_view text) noexcept	{ this->add(text.data(), text.size()); }
 #endif
 
@@ -510,22 +533,22 @@ namespace sha3
 		}
 
 		template <bool KeccakFinalizer = false>
-		hash_result<Bits> get_result() noexcept
+		hash<Bits> get_result() noexcept
 		{
-#ifdef SHA3_DEBUG
+#ifdef SHA_CPP_DEBUG
 			assert(!debug_finalized_flag);
 #endif
-			hash_result<Bits> r = {};
+			hash<Bits> r = {};
 			constexpr uint_fast16_t BLOCK_SIZE = base::BLOCK_SIZE;
 			constexpr uint_fast16_t DIGEST_SIZE = 100 - BLOCK_SIZE / 2;
 			static_assert(BLOCK_SIZE > DIGEST_SIZE);
 			(void)memset((uint8_t*)base::message + base::message_length, 0, BLOCK_SIZE - base::message_length);
 			constexpr uint64_t MASK = KeccakFinalizer ? 0x01 : 0x06;
-			base::message[base::message_length >> 6] |= (MASK << (base::message_length & 63));
-			base::message[(BLOCK_SIZE - 1) >> 6] |= (0x80 << ((BLOCK_SIZE - 1) & 63));
+			((uint8_t*)base::message)[base::message_length] |= MASK;
+			((uint8_t*)base::message)[BLOCK_SIZE - 1] |= 0x80;
 			detail::sha3_process_block<BLOCK_SIZE>(base::hash, base::message);
 			detail::to_little_endian_copy(r.hash_data, base::hash, DIGEST_SIZE);
-#ifdef SHA3_DEBUG
+#ifdef SHA_CPP_DEBUG
 			debug_finalized_flag = true;
 #endif
 			return r;
