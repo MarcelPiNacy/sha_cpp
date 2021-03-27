@@ -81,7 +81,10 @@ namespace sha_cpp
 #endif
 		}
 
-		SHA_CPP_INLINE_ALWAYS void to_little_endian_copy(uint64_t* to, const uint64_t* from, size_t count) noexcept
+		SHA_CPP_INLINE_ALWAYS void to_little_endian_copy(
+			uint64_t* const to,
+			const uint64_t* const from,
+			size_t count) noexcept
 		{
 #ifdef SHA_CPP_BIG_ENDIAN
 			count /= sizeof(uint64_t);
@@ -100,7 +103,7 @@ namespace sha_cpp
 		}
 
 		template <uint8_t Index>
-		SHA_CPP_INLINE_ALWAYS uint64_t keccak_theta_xor(array_ref<const uint64_t, HASH_STATE_SIZE> state) noexcept
+		SHA_CPP_INLINE_ALWAYS uint64_t keccak_theta_xor(const uint64_t* const SHA_CPP_RESTRICT state) noexcept
 		{
 			uint64_t r = state[Index];
 			r ^= state[Index + 5];
@@ -111,13 +114,15 @@ namespace sha_cpp
 		}
 
 		template <uint8_t Index>
-		SHA_CPP_INLINE_ALWAYS void keccak_theta_step(array_ref<uint64_t, HASH_STATE_SIZE> state, array_ref<const uint64_t, 5> tmp) noexcept
+		SHA_CPP_INLINE_ALWAYS void keccak_theta_step(
+			uint64_t* const state,
+			const uint64_t* const tmp) noexcept
 		{
 			for (uint8_t i = 0; i != 25; i += 5)
 				state[Index + i] ^= tmp[Index];
 		}
 
-		SHA_CPP_INLINE_ALWAYS void keccak_theta(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
+		SHA_CPP_INLINE_ALWAYS void keccak_theta(uint64_t* const SHA_CPP_RESTRICT state) noexcept
 		{
 			const uint64_t tmp[] =
 			{
@@ -135,7 +140,7 @@ namespace sha_cpp
 			keccak_theta_step<4>(state, tmp);
 		}
 
-		SHA_CPP_INLINE_ALWAYS void keccak_pi(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
+		SHA_CPP_INLINE_ALWAYS void keccak_pi(uint64_t* const SHA_CPP_RESTRICT state) noexcept
 		{
 			const uint64_t tmp = state[1];
 
@@ -171,7 +176,7 @@ namespace sha_cpp
 		}
 
 		template <uint8_t Index>
-		SHA_CPP_INLINE_ALWAYS void keccak_chi_step(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
+		SHA_CPP_INLINE_ALWAYS void keccak_chi_step(uint64_t* const SHA_CPP_RESTRICT state) noexcept
 		{
 			const uint64_t tmp0 = state[0 + Index];
 			const uint64_t tmp1 = state[1 + Index];
@@ -182,7 +187,7 @@ namespace sha_cpp
 			state[4 + Index] ^= ~tmp0 & tmp1;
 		}
 
-		SHA_CPP_INLINE_ALWAYS void keccak_chi(array_ref<uint64_t, HASH_STATE_SIZE> state) noexcept
+		SHA_CPP_INLINE_ALWAYS void keccak_chi(uint64_t* const SHA_CPP_RESTRICT state) noexcept
 		{
 			keccak_chi_step<0>(state);
 			keccak_chi_step<5>(state);
@@ -192,7 +197,9 @@ namespace sha_cpp
 		}
 
 		template <uint8_t BlockSize>
-		SHA_CPP_INLINE_ALWAYS void process_block(array_ref<uint64_t, HASH_STATE_SIZE> hash, const uint64_t* block) noexcept
+		SHA_CPP_INLINE_ALWAYS void process_block(
+			uint64_t* const SHA_CPP_RESTRICT hash,
+			const uint64_t* const SHA_CPP_RESTRICT block) noexcept
 		{
 			constexpr uint8_t Count =
 				BlockSize <= 72 ? 9 :
@@ -206,6 +213,7 @@ namespace sha_cpp
 			for (uint8_t i = 0; i < KECCAK_ROUND_COUNT; i++)
 			{
 				keccak_theta(hash);
+
 				hash[1]  = SHA_CPP_ROTL64(hash[1], 1);
 				hash[2]  = SHA_CPP_ROTL64(hash[2], 62);
 				hash[3]  = SHA_CPP_ROTL64(hash[3], 28);
@@ -230,8 +238,10 @@ namespace sha_cpp
 				hash[22] = SHA_CPP_ROTL64(hash[22], 61);
 				hash[23] = SHA_CPP_ROTL64(hash[23], 56);
 				hash[24] = SHA_CPP_ROTL64(hash[24], 14);
+				
 				keccak_pi(hash);
 				keccak_chi(hash);
+
 				hash[0] ^= KECCAK_ROUND_LOOKUP[i];
 			}
 		}
@@ -369,7 +379,7 @@ namespace sha_cpp
 			assert(!debug_finalized_flag);
 #endif
 			hash<Bits> r = {};
-			constexpr uint_fast16_t BlockSize = base::BlockSize;
+			constexpr uint_fast16_t BlockSize = base::BLOCK_SIZE;
 			constexpr uint_fast16_t DigestSize = 100 - BlockSize / 2;
 			static_assert(BlockSize > DigestSize);
 			(void)memset((uint8_t*)base::message + base::message_length, 0, BlockSize - base::message_length);

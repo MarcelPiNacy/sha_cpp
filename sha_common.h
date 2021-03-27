@@ -11,6 +11,7 @@
 #include <cstring>
 #define SHA_CPP_INLINE_ALWAYS __forceinline
 #define SHA_CPP_INLINE_NEVER __declspec(noinline)
+#define SHA_CPP_RESTRICT __restrict
 #ifdef SHA_CPP_BIG_ENDIAN
 #define SHA_CPP_BSWAP64(MASK) _byteswap_uint64((MASK))
 #endif
@@ -18,6 +19,7 @@
 #else // assume CLang-like compiler
 #define SHA_CPP_INLINE_ALWAYS __attribute__((always_inline))
 #define SHA_CPP_INLINE_NEVER __attribute__((noinline))
+#define SHA_CPP_RESTRICT __restrict__
 #ifdef SHA_CPP_BIG_ENDIAN
 #define SHA_CPP_BSWAP64(MASK) __bswap64((MASK))
 #endif
@@ -30,12 +32,6 @@
 
 namespace sha_cpp
 {
-	template <typename T, uint32_t Size>
-	using array_type = T[Size];
-
-	template <typename T, uint32_t Size>
-	using array_ref = array_type<T, Size>&;
-
 	namespace detail
 	{
 		constexpr char hex_lookup_upper[] =
