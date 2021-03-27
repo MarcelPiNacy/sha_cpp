@@ -2,3 +2,4 @@
 sha0.h
 sha1.h
 sha2.h
+*.json
