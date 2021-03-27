@@ -253,22 +253,22 @@ namespace sha_cpp
 #ifdef SHA_CPP_DEBUG
 			assert(!debug_finalized_flag);
 #endif
-			constexpr uint8_t BLOCK_SIZE = base::BLOCK_SIZE;
+			constexpr uint8_t BlockSize = base::BLOCK_SIZE;
 			uint8_t* ptr = (uint8_t*)data;
 			size_t index = base::message_length;
 			base::message_length += (uint8_t)size;
-			base::message_length = (uint8_t)detail::sha3::fast_mod<BLOCK_SIZE>(base::message_length);
+			base::message_length = (uint8_t)detail::sha3::fast_mod<BlockSize>(base::message_length);
 			if (index != 0)
 			{
-				const size_t left = BLOCK_SIZE - index;
+				const size_t left = BlockSize - index;
 				(void)memcpy((uint8_t*)base::message + index, ptr, size < left ? size : left);
 				if (size < left)
 					return;
-				detail::sha3::process_block<BLOCK_SIZE>(base::hash, base::message);
+				detail::sha3::process_block<BlockSize>(base::hash, base::message);
 				ptr += left;
 				size -= left;
 			}
-			while (size >= BLOCK_SIZE)
+			while (size >= BlockSize)
 			{
 				uint64_t* aligned_message_block;
 				if (detail::sha3::is_8byte_aligned(ptr))
@@ -277,12 +277,12 @@ namespace sha_cpp
 				}
 				else
 				{
-					(void)memcpy(base::message, ptr, BLOCK_SIZE);
+					(void)memcpy(base::message, ptr, BlockSize);
 					aligned_message_block = base::message;
 				}
-				detail::sha3::process_block<BLOCK_SIZE>(base::hash, aligned_message_block);
-				ptr += BLOCK_SIZE;
-				size -= BLOCK_SIZE;
+				detail::sha3::process_block<BlockSize>(base::hash, aligned_message_block);
+				ptr += BlockSize;
+				size -= BlockSize;
 			}
 			if (size != 0)
 			{
@@ -296,33 +296,33 @@ namespace sha_cpp
 #ifdef SHA_CPP_DEBUG
 			assert(!debug_finalized_flag);
 #endif
-			constexpr uint8_t BLOCK_SIZE = base::BLOCK_SIZE;
+			constexpr uint8_t BlockSize = base::BLOCK_SIZE;
 			uint8_t* ptr = (uint8_t*)data;
 			size_t size = Size;
 			size_t index = base::message_length;
 			base::message_length += (uint8_t)size;
-			base::message_length = (uint8_t)detail::sha3::fast_mod<BLOCK_SIZE>(base::message_length);
+			base::message_length = (uint8_t)detail::sha3::fast_mod<BlockSize>(base::message_length);
 			if (index != 0)
 			{
-				const size_t left = BLOCK_SIZE - index;
+				const size_t left = BlockSize - index;
 				(void)memcpy((uint8_t*)base::message + index, ptr, size < left ? size : left);
 				if (size < left)
 					return;
-				detail::sha3::process_block<BLOCK_SIZE>(base::hash, base::message);
+				detail::sha3::process_block<BlockSize>(base::hash, base::message);
 				ptr += left;
 				size -= left;
 			}
-			while (size >= BLOCK_SIZE)
+			while (size >= BlockSize)
 			{
 				uint64_t* aligned_message_block = (uint64_t*)ptr;
 				if (!detail::sha3::is_8byte_aligned(ptr))
 				{
-					(void)memcpy(base::message, ptr, BLOCK_SIZE);
+					(void)memcpy(base::message, ptr, BlockSize);
 					aligned_message_block = base::message;
 				}
-				detail::sha3::process_block<BLOCK_SIZE>(base::hash, aligned_message_block);
-				ptr += BLOCK_SIZE;
-				size -= BLOCK_SIZE;
+				detail::sha3::process_block<BlockSize>(base::hash, aligned_message_block);
+				ptr += BlockSize;
+				size -= BlockSize;
 			}
 			if (size != 0)
 			{
@@ -369,15 +369,15 @@ namespace sha_cpp
 			assert(!debug_finalized_flag);
 #endif
 			hash<Bits> r = {};
-			constexpr uint_fast16_t BLOCK_SIZE = base::BLOCK_SIZE;
-			constexpr uint_fast16_t DIGEST_SIZE = 100 - BLOCK_SIZE / 2;
-			static_assert(BLOCK_SIZE > DIGEST_SIZE);
-			(void)memset((uint8_t*)base::message + base::message_length, 0, BLOCK_SIZE - base::message_length);
+			constexpr uint_fast16_t BlockSize = base::BlockSize;
+			constexpr uint_fast16_t DigestSize = 100 - BlockSize / 2;
+			static_assert(BlockSize > DigestSize);
+			(void)memset((uint8_t*)base::message + base::message_length, 0, BlockSize - base::message_length);
 			constexpr uint64_t MASK = KeccakFinalizer ? 0x01 : 0x06;
 			((uint8_t*)base::message)[base::message_length] |= MASK;
-			((uint8_t*)base::message)[BLOCK_SIZE - 1] |= 0x80;
-			detail::sha3::process_block<BLOCK_SIZE>(base::hash, base::message);
-			detail::sha3::to_little_endian_copy(r.hash_data, base::hash, DIGEST_SIZE);
+			((uint8_t*)base::message)[BlockSize - 1] |= 0x80;
+			detail::sha3::process_block<BlockSize>(base::hash, base::message);
+			detail::sha3::to_little_endian_copy(r.hash_data, base::hash, DigestSize);
 #ifdef SHA_CPP_DEBUG
 			debug_finalized_flag = true;
 #endif
