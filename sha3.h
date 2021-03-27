@@ -294,7 +294,7 @@ namespace sha_cpp
 		}
 
 		template <size_t Size>
-		void add_fixed(const void* data) noexcept
+		void hash_fixed(const void* data) noexcept
 		{
 #ifdef SHA_CPP_DEBUG
 			assert(!debug_finalized_flag);
@@ -332,30 +332,33 @@ namespace sha_cpp
 				(void)memcpy(base::message, ptr, size);
 			}
 		}
-		
-		void hash(uint8_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
-		void hash(uint16_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
-		void hash(uint32_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
-		void hash(uint64_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
 
-		void hash(int8_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
-		void hash(int16_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
-		void hash(int32_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
-		void hash(int64_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
+		void hash(uint8_t value)		noexcept { this->add_fixed<sizeof(value)>(&value); }
+		void hash(uint16_t value)		noexcept { this->add_fixed<sizeof(value)>(&value); }
+		void hash(uint32_t value)		noexcept { this->add_fixed<sizeof(value)>(&value); }
+		void hash(uint64_t value)		noexcept { this->add_fixed<sizeof(value)>(&value); }
 
-		void hash(float value) noexcept					{ this->add_fixed<sizeof(value)>(&value); }
-		void hash(double value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
-		void hash(long double value) noexcept			{ this->add_fixed<sizeof(value)>(&value); }
+		void hash(int8_t value)			noexcept { this->add_fixed<sizeof(value)>(&value); }
+		void hash(int16_t value)		noexcept { this->add_fixed<sizeof(value)>(&value); }
+		void hash(int32_t value)		noexcept { this->add_fixed<sizeof(value)>(&value); }
+		void hash(int64_t value)		noexcept { this->add_fixed<sizeof(value)>(&value); }
 
-		void hash(char value) noexcept					{ this->add_fixed<sizeof(value)>(&value); }
+		void hash(float value)			noexcept { this->add_fixed<sizeof(value)>(&value); }
+		void hash(double value)			noexcept { this->add_fixed<sizeof(value)>(&value); }
+		void hash(long double value)	noexcept { this->add_fixed<sizeof(value)>(&value); }
+
+		void hash(char value)			noexcept { this->add_fixed<sizeof(value)>(&value); }
 #if __cplusplus >= 202002L
-		void hash(char8_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
+		void hash(char8_t value)		noexcept { this->add_fixed<sizeof(value)>(&value); }
 #endif
-		void hash(char16_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
-		void hash(char32_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
-		
+		void hash(char16_t value)		noexcept { this->add_fixed<sizeof(value)>(&value); }
+		void hash(char32_t value)		noexcept { this->add_fixed<sizeof(value)>(&value); }
+
 #ifdef SHA_CPP_STRING_VIEW
-		void hash(const std::string_view text) noexcept	{ this->hash(text.data(), text.size()); }
+		void hash(const std::string_view text) noexcept
+		{
+			this->hash(text.data(), text.size());
+		}
 #endif
 
 		template <typename Collection>
