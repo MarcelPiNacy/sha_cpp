@@ -16,8 +16,8 @@ namespace sha_cpp
 			0x8000000080008081, 0x8000000000008080, 0x0000000080000001, 0x8000000080008008
 		};
 
-		static constexpr uint8_t HASH_STATE_SIZE = 25;
-		static constexpr uint8_t MAX_HASH_RATE = 24;
+		constexpr uint8_t HASH_STATE_SIZE = 25;
+		constexpr uint8_t MAX_HASH_RATE = 24;
 
 		template <uint32_t Bits>
 		struct hash_state
@@ -33,7 +33,7 @@ namespace sha_cpp
 		};
 
 		template <uint32_t Divisor>
-		SHA_CPP_INLINE_ALWAYS uint8_t fast_mod(uint8_t value)
+		SHA_CPP_INLINE_ALWAYS constexpr uint8_t fast_mod(uint8_t value)
 		{
 			constexpr uint32_t PopCount = []()
 			{
@@ -67,7 +67,7 @@ namespace sha_cpp
 			}
 		}
 
-		SHA_CPP_INLINE_ALWAYS bool is_8byte_aligned(void* ptr) noexcept
+		SHA_CPP_INLINE_ALWAYS constexpr bool is_8byte_aligned(void* ptr) noexcept
 		{
 			return ((size_t)ptr & 7) == 0;
 		}
@@ -81,10 +81,7 @@ namespace sha_cpp
 #endif
 		}
 
-		SHA_CPP_INLINE_ALWAYS void to_little_endian_copy(
-			uint64_t* const SHA_CPP_RESTRICT to,
-			const uint64_t* const SHA_CPP_RESTRICT from,
-			size_t count) noexcept
+		SHA_CPP_INLINE_ALWAYS void to_little_endian_copy(uint64_t* SHA_CPP_RESTRICT to, const uint64_t* SHA_CPP_RESTRICT from, size_t count) noexcept
 		{
 #ifdef SHA_CPP_BIG_ENDIAN
 			count /= sizeof(uint64_t);
@@ -103,7 +100,7 @@ namespace sha_cpp
 		}
 
 		template <uint8_t Index>
-		SHA_CPP_INLINE_ALWAYS uint64_t keccak_theta_xor(const uint64_t* const SHA_CPP_RESTRICT state) noexcept
+		SHA_CPP_INLINE_ALWAYS constexpr uint64_t keccak_theta_xor(const uint64_t* SHA_CPP_RESTRICT state) noexcept
 		{
 			uint64_t r = state[Index];
 			r ^= state[Index + 5];
@@ -114,15 +111,13 @@ namespace sha_cpp
 		}
 
 		template <uint8_t Index>
-		SHA_CPP_INLINE_ALWAYS void keccak_theta_step(
-			uint64_t* const state,
-			const uint64_t* const tmp) noexcept
+		SHA_CPP_INLINE_ALWAYS constexpr void keccak_theta_step(uint64_t* SHA_CPP_RESTRICT state, const uint64_t* SHA_CPP_RESTRICT tmp) noexcept
 		{
 			for (uint8_t i = 0; i != 25; i += 5)
 				state[Index + i] ^= tmp[Index];
 		}
 
-		SHA_CPP_INLINE_ALWAYS void keccak_theta(uint64_t* const SHA_CPP_RESTRICT state) noexcept
+		SHA_CPP_INLINE_ALWAYS void keccak_theta(uint64_t* SHA_CPP_RESTRICT state) noexcept
 		{
 			const uint64_t tmp[] =
 			{
@@ -140,7 +135,7 @@ namespace sha_cpp
 			keccak_theta_step<4>(state, tmp);
 		}
 
-		SHA_CPP_INLINE_ALWAYS void keccak_pi(uint64_t* const SHA_CPP_RESTRICT state) noexcept
+		SHA_CPP_INLINE_ALWAYS constexpr void keccak_pi(uint64_t* SHA_CPP_RESTRICT state) noexcept
 		{
 			const uint64_t tmp = state[1];
 
@@ -176,7 +171,7 @@ namespace sha_cpp
 		}
 
 		template <uint8_t Index>
-		SHA_CPP_INLINE_ALWAYS void keccak_chi_step(uint64_t* const SHA_CPP_RESTRICT state) noexcept
+		SHA_CPP_INLINE_ALWAYS constexpr void keccak_chi_step(uint64_t* SHA_CPP_RESTRICT state) noexcept
 		{
 			const uint64_t tmp0 = state[0 + Index];
 			const uint64_t tmp1 = state[1 + Index];
@@ -187,7 +182,7 @@ namespace sha_cpp
 			state[4 + Index] ^= ~tmp0 & tmp1;
 		}
 
-		SHA_CPP_INLINE_ALWAYS void keccak_chi(uint64_t* const SHA_CPP_RESTRICT state) noexcept
+		SHA_CPP_INLINE_ALWAYS constexpr void keccak_chi(uint64_t* SHA_CPP_RESTRICT state) noexcept
 		{
 			keccak_chi_step<0>(state);
 			keccak_chi_step<5>(state);
@@ -197,9 +192,7 @@ namespace sha_cpp
 		}
 
 		template <uint8_t BlockSize>
-		SHA_CPP_INLINE_ALWAYS void process_block(
-			uint64_t* const SHA_CPP_RESTRICT hash,
-			const uint64_t* const SHA_CPP_RESTRICT block) noexcept
+		SHA_CPP_INLINE_ALWAYS void process_block(uint64_t* SHA_CPP_RESTRICT state, const uint64_t* SHA_CPP_RESTRICT block) noexcept
 		{
 			constexpr uint8_t Count =
 				BlockSize <= 72 ? 9 :
@@ -208,41 +201,41 @@ namespace sha_cpp
 				BlockSize <= 144 ? 18 : 25;
 
 			for (uint8_t i = 0; i != Count; ++i)
-				hash[i] ^= to_little_endian(block[i]);
+				state[i] ^= to_little_endian(block[i]);
 
 			for (uint8_t i = 0; i < KECCAK_ROUND_COUNT; i++)
 			{
-				keccak_theta(hash);
+				keccak_theta(state);
 
-				hash[1]  = SHA_CPP_ROTL64(hash[1], 1);
-				hash[2]  = SHA_CPP_ROTL64(hash[2], 62);
-				hash[3]  = SHA_CPP_ROTL64(hash[3], 28);
-				hash[4]  = SHA_CPP_ROTL64(hash[4], 27);
-				hash[5]  = SHA_CPP_ROTL64(hash[5], 36);
-				hash[6]  = SHA_CPP_ROTL64(hash[6], 44);
-				hash[7]  = SHA_CPP_ROTL64(hash[7], 6);
-				hash[8]  = SHA_CPP_ROTL64(hash[8], 55);
-				hash[9]  = SHA_CPP_ROTL64(hash[9], 20);
-				hash[10] = SHA_CPP_ROTL64(hash[10], 3);
-				hash[11] = SHA_CPP_ROTL64(hash[11], 10);
-				hash[12] = SHA_CPP_ROTL64(hash[12], 43);
-				hash[13] = SHA_CPP_ROTL64(hash[13], 25);
-				hash[14] = SHA_CPP_ROTL64(hash[14], 39);
-				hash[15] = SHA_CPP_ROTL64(hash[15], 41);
-				hash[16] = SHA_CPP_ROTL64(hash[16], 45);
-				hash[17] = SHA_CPP_ROTL64(hash[17], 15);
-				hash[18] = SHA_CPP_ROTL64(hash[18], 21);
-				hash[19] = SHA_CPP_ROTL64(hash[19], 8);
-				hash[20] = SHA_CPP_ROTL64(hash[20], 18);
-				hash[21] = SHA_CPP_ROTL64(hash[21], 2);
-				hash[22] = SHA_CPP_ROTL64(hash[22], 61);
-				hash[23] = SHA_CPP_ROTL64(hash[23], 56);
-				hash[24] = SHA_CPP_ROTL64(hash[24], 14);
+				state[1]  = SHA_CPP_ROTL64(state[1], 1);
+				state[2]  = SHA_CPP_ROTL64(state[2], 62);
+				state[3]  = SHA_CPP_ROTL64(state[3], 28);
+				state[4]  = SHA_CPP_ROTL64(state[4], 27);
+				state[5]  = SHA_CPP_ROTL64(state[5], 36);
+				state[6]  = SHA_CPP_ROTL64(state[6], 44);
+				state[7]  = SHA_CPP_ROTL64(state[7], 6);
+				state[8]  = SHA_CPP_ROTL64(state[8], 55);
+				state[9]  = SHA_CPP_ROTL64(state[9], 20);
+				state[10] = SHA_CPP_ROTL64(state[10], 3);
+				state[11] = SHA_CPP_ROTL64(state[11], 10);
+				state[12] = SHA_CPP_ROTL64(state[12], 43);
+				state[13] = SHA_CPP_ROTL64(state[13], 25);
+				state[14] = SHA_CPP_ROTL64(state[14], 39);
+				state[15] = SHA_CPP_ROTL64(state[15], 41);
+				state[16] = SHA_CPP_ROTL64(state[16], 45);
+				state[17] = SHA_CPP_ROTL64(state[17], 15);
+				state[18] = SHA_CPP_ROTL64(state[18], 21);
+				state[19] = SHA_CPP_ROTL64(state[19], 8);
+				state[20] = SHA_CPP_ROTL64(state[20], 18);
+				state[21] = SHA_CPP_ROTL64(state[21], 2);
+				state[22] = SHA_CPP_ROTL64(state[22], 61);
+				state[23] = SHA_CPP_ROTL64(state[23], 56);
+				state[24] = SHA_CPP_ROTL64(state[24], 14);
 				
-				keccak_pi(hash);
-				keccak_chi(hash);
+				keccak_pi(state);
+				keccak_chi(state);
 
-				hash[0] ^= KECCAK_ROUND_LOOKUP[i];
+				state[0] ^= KECCAK_ROUND_LOOKUP[i];
 			}
 		}
 	}
@@ -345,13 +338,13 @@ namespace sha_cpp
 		void hash(uint32_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
 		void hash(uint64_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
 
-		void hash(int8_t value) noexcept					{ this->add_fixed<sizeof(value)>(&value); }
+		void hash(int8_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
 		void hash(int16_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
 		void hash(int32_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
 		void hash(int64_t value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
 
 		void hash(float value) noexcept					{ this->add_fixed<sizeof(value)>(&value); }
-		void hash(double value) noexcept					{ this->add_fixed<sizeof(value)>(&value); }
+		void hash(double value) noexcept				{ this->add_fixed<sizeof(value)>(&value); }
 		void hash(long double value) noexcept			{ this->add_fixed<sizeof(value)>(&value); }
 
 		void hash(char value) noexcept					{ this->add_fixed<sizeof(value)>(&value); }

@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <type_traits>
 
 #if defined(_DEBUG) || !defined(NDEBUG)
 #define SHA_CPP_DEBUG
