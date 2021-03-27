@@ -82,8 +82,8 @@ namespace sha_cpp
 		}
 
 		SHA_CPP_INLINE_ALWAYS void to_little_endian_copy(
-			uint64_t* const to,
-			const uint64_t* const from,
+			uint64_t* const SHA_CPP_RESTRICT to,
+			const uint64_t* const SHA_CPP_RESTRICT from,
 			size_t count) noexcept
 		{
 #ifdef SHA_CPP_BIG_ENDIAN
